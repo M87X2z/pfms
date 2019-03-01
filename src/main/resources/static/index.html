@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Wellcome to FMS</title>
+    <link rel="stylesheet" href="assets/layui/css/layui.css">
+    <link rel="stylesheet" href="assets/common.css">
+    <link rel="shorcut icon" href="assets/images/logo.png">
+</head>
+
+<body>
+<div class="header">
+    <div class="layui-container">
+        <div class="layui-logo">
+            <img src="assets/images/logo.png"/><cite><span><a href="/">File Management System</a></span></cite>
+        </div>
+    </div>
+</div>
+
+<div class="layui-container" style="padding-top: 15px;">
+    <div class="layui-card">
+        <div class="layui-card-header">当前位置：<span id="tvFP">/</span></div>
+        <div class="layui-card-body">
+            <div class="btnDiv">
+                <button id="btnBack" class="layui-btn layui-btn-sm layui-btn-primary icon-btn"><i class="layui-icon">&#xe65c;</i>返回上级
+                </button>
+                <button id="btnRefresh" class="layui-btn layui-btn-sm layui-btn-primary icon-btn"><i class="layui-icon">&#xe669;</i>刷新
+                </button>
+                <button id="btnUpload" class="layui-btn layui-btn-sm layui-btn-normal icon-btn"><i class="layui-icon">&#xe681;</i>上传文件
+                </button>
+                <button id="btnNewDir" class="layui-btn layui-btn-sm layui-btn-normal icon-btn"><i class="layui-icon layui-icon-add-circle"></i>新建文件夹
+                </button>
+                <button id="btnDelDir" class="layui-btn layui-btn-sm layui-btn-primary icon-btn"><i class="layui-icon layui-icon-delete"></i>刪除目录
+                </button>
+                <button id="btnRname" class="layui-btn layui-btn-sm layui-btn-primary icon-btn"><i class="layui-icon layui-icon-edit"></i>重命名目录
+                </button>
+            </div>
+
+            <div class="file-list"></div>
+        </div>
+    </div>
+</div>
+
+<div style="text-align: center;margin: 60px 0 20px 0">
+    <a style="color: #777;" href="https://xinke.org.cn" target="_blank">ECode1024</a> |
+    <a style="color: #777;" href="https://tool.xinke.org.cn" target="_blank">工具帝国</a> |
+    <a style="color: #777;" href="https://piiic.xinke.org.cn" target="_blank">长图工具</a> |
+    <a style="color: #777;" href="https://codeif.xinke.org.cn" target="_blank">CodeIF</a> |
+    <a style="color: #777;" href="https://sorry.xinke.org.cn" target="_blank">Sorry生成</a>
+</div>
+
+<!-- 下拉菜单 -->
+<div class="dropdown-menu dropdown-anchor-top-left" id="dropdownFile">
+    <div class="dropdown-anchor"></div>
+    <ul>
+        <li><a id="open"><i class="layui-icon layui-icon-file"></i>&emsp;查看&emsp;</a></li>
+        <li><a id="down"><i class="layui-icon layui-icon-download-circle"></i>&emsp;下载&emsp;</a></li>
+        <li>
+            <a id="del" style="color: red !important;">
+                <i class="layui-icon layui-icon-delete" style="font-size: 19px;"></i>&nbsp;&nbsp;&nbsp;删除&emsp;
+            </a>
+        </li>
+        <li><a id="share"><i class="layui-icon layui-icon-share"></i>&emsp;分享&emsp;</a></li>
+        <li><a id="rename"><i class="layui-icon layui-icon-edit"></i>&emsp;重命名&emsp;</a></li>
+    </ul>
+</div>
+
+<input type="hidden" id="shareFileUrl" value="">
+
+<!-- 渲染模板 -->
+<script id="fileTpl" type="text/html">
+    {{#  layui.each(d, function(index, item){ }}
+    <div class="file-list-item" data-dir="{{item.isDir}}" data-url="{{item.url}}" data-name="{{item.name}}" data-preview="{{item.preview}}">
+        <div class="file-list-img {{item.hasSm?'media':''}}">
+            {{# if(item.hasSm){ }}
+            <img src="{{item.smUrl}}"/>
+            {{# }else{ }}
+            <img src="assets/images/fti/{{item.type}}.png"/>
+            {{# } }}
+        </div>
+        <div class="file-list-name">{{item.name}}</div>
+    </div>
+    {{#  }); }}
+    {{# if(d.length<=0){ }}
+    <div class="list-empty">
+        <i class="layui-icon layui-icon-face-surprised"></i>
+        <div>没有文件</div>
+    </div>
+    {{# } }}
+</script>
+
+<script type="text/javascript" src="assets/layui/layui.js"></script>
+<script type="text/javascript" src="assets/clipboard.min.js"></script>
+<script type="text/javascript" src="assets/config.js"></script>
+<script>
+    layui.use(['jquery', 'layer', 'element', 'upload', 'laytpl', 'util'], function () {
+        var $ = layui.jquery;
+        var layer = layui.layer;
+        var element = layui.element;
+        var upload = layui.upload;
+        var laytpl = layui.laytpl;
+        var util = layui.util;
+
+        // 渲染文件列表
+        function renderList(dir) {
+            if ($('#tvFP').text() == '/') {
+                $('#btnDelDir').hide();
+                $('#btnRname').hide();
+            } else {
+                $('#btnDelDir').show();
+                $('#btnRname').show();
+            }
+            if (!dir) {
+                dir = $('#tvFP').text();
+            }
+            layer.load(2);
+            $.get(baseServer + 'api/list', {
+                dir: dir
+            }, function (res) {
+                layer.closeAll('loading');
+                if (res.code == 200) {
+                    for (var i = 0; i < res.data.length; i++) {
+                        res.data[i].url = baseServer + 'file/' + res.data[i].url;
+                        res.data[i].smUrl = baseServer + 'file/sm?p=' + res.data[i].smUrl;
+                    }
+                    laytpl(fileTpl.innerHTML).render(res.data, function (html) {
+                        $('.file-list').html(html);
+                    });
+                } else {
+                    layer.msg(res.msg, {icon: 2});
+                }
+            });
+        }
+
+        renderList();
+
+        // 上传文件事件
+        upload.render({
+            elem: '#btnUpload',
+            data: {},
+            url: baseServer + 'file/upload',
+            before:function(obj){
+                // 动态传参
+                this.data.curPos = $('#tvFP').text();
+            },
+            choose: function (obj) {
+                layer.load(2);
+            },
+            done: function (res, index, upload) {
+                layer.closeAll('loading');
+                if (res.code != 200) {
+                    layer.msg(res.msg, {icon: 2});
+                } else {
+                    layer.msg(res.msg, {icon: 1});
+                    renderList();
+                }
+            },
+            error: function () {
+                layer.closeAll('loading');
+                layer.msg('上传失败', {icon: 2});
+            },
+            accept: 'file'
+        });
+
+        // 刷新
+        $('#btnRefresh').click(function () {
+            renderList();
+        });
+
+        var mUrl;
+        // 列表点击事件
+        $('body').on('click', '.file-list-item', function (e) {
+            var isDir = $(this).data('dir');
+            var name = $(this).data('name');
+            var preview = $(this).data('preview');
+            mUrl = $(this).data('url');
+            $('#copy').attr('data-clipboard-text', mUrl);
+            if (isDir) {
+                var cDir = $('#tvFP').text();
+                cDir += (cDir == '/' ? name : ('/' + name));
+                $('#tvFP').text(cDir);
+                renderList(cDir);
+            } else {
+                var $target = $(this).find('.file-list-img');
+                $('#dropdownFile').css({
+                    'top': $target.offset().top + 90,
+                    'left': $target.offset().left + 25
+                });
+                $('#dropdownFile').addClass('dropdown-opened');
+                if (!preview) {
+                    $('#open').hide();
+                } else {
+                    $('#open').show();
+                }
+                if (e !== void 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+        });
+
+        // 返回上级
+        $('#btnBack').click(function () {
+            var cDir = $('#tvFP').text();
+            if (cDir == '/') {
+                layer.msg('已经是根目录')
+            } else {
+                cDir = cDir.substring(0, cDir.lastIndexOf('/'));
+                if (!cDir) {
+                    cDir = '/';
+                }
+                $('#tvFP').text(cDir);
+                renderList(cDir);
+            }
+        });
+
+        // 点击空白隐藏下拉框
+        $('html').off('click.dropdown').on('click.dropdown', function () {
+            $('#copy').attr('data-clipboard-text', '');
+            $('#dropdownFile').removeClass('dropdown-opened');
+        });
+
+        // 查看
+        $('#open').click(function () {
+            var fullName = mUrl.substr(7);
+            window.open("/file?p=" + fullName + "&d=0", '_blank');
+        });
+
+        // 下载
+        $('#down').click(function () {
+            var fullName = mUrl.substr(7);
+            window.open("/file?p=" + fullName + "&d=1", '_blank');
+        });
+
+        // 删除
+        $('#del').click(function () {
+            layer.confirm('确定要删除此文件吗？', function () {
+                layer.load(2);
+                $.get(baseServer + 'api/del', {
+                    file: mUrl.substring(mUrl.indexOf('/file/') + 6)
+                }, function (res) {
+                    layer.closeAll('loading');
+                    if (res.code == 200) {
+                        layer.msg(res.msg, {icon: 1});
+                        renderList();
+                    } else {
+                        layer.msg(res.msg, {icon: 2});
+                    }
+                });
+            });
+        });
+
+        // 重命名
+        $('#rename').click(function () {
+            layer.prompt({
+                formType: 0,
+                value: mUrl.substr(mUrl.lastIndexOf('/') + 1),
+                title: '新文件名'
+            }, function(value, index, elem){
+                var oldFile = mUrl.substring(mUrl.indexOf('/file/') + 6);
+                var newFile = mUrl.substr(7, mUrl.lastIndexOf('/') - 6) + value;
+                layer.load(2);
+                $.get(baseServer + 'api/rename', {
+                    oldFile: oldFile,
+                    newFile: newFile
+                }, function (res) {
+                    layer.closeAll('loading');
+                    if (res.code == 200) {
+                        layer.msg(res.msg, {icon: 1});
+                        renderList();
+                    } else {
+                        layer.msg(res.msg, {icon: 2});
+                    }
+                });
+                layer.close(index);
+            });
+        });
+
+        // 分享
+        $('#share').click(function () {
+            layer.prompt({
+                formType: 0,
+                value: '30',
+                title: '设置时间(分钟)'
+            }, function(value, index, elem){
+                var file = mUrl.substr(7);
+                layer.load(2);
+                $.post(baseServer + 'api/share', {
+                    file: file,
+                    time: value
+                }, function (res) {
+                    layer.closeAll('loading');
+                    if (res.code == 200) {
+                        layer.open({
+                            title: res.msg,
+                            content: '链接：' + res.url,
+                            btn: ['复制链接'],
+                            btn1: function(index, layero){
+                                var clipboard = new ClipboardJS(".layui-layer-btn0",{
+                                    text: function () {
+                                        return res.url;
+                                    }
+                                });
+                                clipboard.on('success', function (e) {
+                                    e.clearSelection();
+                                    layer.msg('分享地址已复制', {icon: 1});
+                                });
+                                clipboard.on('error', function (e) {
+                                    layer.msg('复制失败，请手动复制', {icon: 2});
+                                });
+                            }
+                        });
+                    }
+                });
+                layer.close(index);
+            });
+        });
+
+        // 选择删除
+        $('#btnSelectDel').click(function () {
+            layer.open({
+                type: 2,
+                title: '选择文件',
+                content: 'fileChoose.html?multi=true',
+                area: ['600px', '420px'],
+                offset: '50px',
+                shade: .1,
+                fixed: false,
+                resize: true,
+                end: function () {
+                    if (typeof(mFsUrls) != "undefined" && mFsUrls.length > 0) {
+                        layer.msg('你选择了：' + JSON.stringify(mFsUrls), {icon: 1});
+                        mFsUrls = undefined;
+                    }
+                }
+            });
+        });
+
+        // 新建文件夹
+        $('#btnNewDir').click(function () {
+            layer.prompt({
+                formType: 0,
+                value: "新建文件夹",
+                title: '文件名'
+            }, function(value, index, elem){
+                var curPos = $('#tvFP').text();
+                layer.load(2);
+                $.get(baseServer + 'api/mkdir', {
+                    curPos: curPos,
+                    dirName: value
+                }, function (res) {
+                    layer.closeAll('loading');
+                    if (res.code == 200) {
+                        layer.msg(res.msg, {icon: 1});
+                        renderList();
+                    } else {
+                        layer.msg(res.msg, {icon: 2});
+                    }
+                });
+                layer.close(index);
+            });
+        });
+
+        // 删除当前目录
+        $('#btnDelDir').click(function () {
+            layer.confirm('将删除此目录下所有文件', {icon: 3, title:'确认'}, function(index){
+                var curPos = $('#tvFP').text().substr(1);
+                layer.load(2);
+                $.get(baseServer + 'api/del', {
+                    file: curPos
+                }, function (res) {
+                    layer.closeAll('loading');
+                    if (res.code == 200) {
+                        layer.msg(res.msg, {icon: 1});
+                        renderList();
+                    } else {
+                        layer.msg(res.msg, {icon: 2});
+                    }
+                });
+                layer.close(index);
+            });
+        });
+
+        // 重命名当前目录
+        $('#btnRname').click(function () {
+            var tvFP = $('#tvFP').text();
+            layer.prompt({
+                formType: 0,
+                value: tvFP,
+                title: '新目录名'
+            }, function(value, index, elem){
+                layer.load(2);
+                $.get(baseServer + 'api/rename', {
+                    oldFile: tvFP.substr(1),
+                    newFile: value.substr(1)
+                }, function (res) {
+                    layer.closeAll('loading');
+                    if (res.code == 200) {
+                        layer.msg(res.msg, {icon: 1});
+                        $('#tvFP').text(res.url);
+                        renderList();
+                    } else {
+                        layer.msg(res.msg, {icon: 2});
+                    }
+                });
+                layer.close(index);
+            });
+        });
+
+    });
+</script>
+</body>
+</html>
