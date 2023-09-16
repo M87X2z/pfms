@@ -46,5 +46,6 @@ fs.useNginx：文件是否使用nginx做转发
 fs.nginxUrl：nginx服务器地址
 
 ## Other
-👏欢迎访问最近开发的助手网站：[维斯小助手🚀🚀](https://weisizhushou.com)
-如有其他问题可联系qq：3080435357或者微信：M87X2z
+1、👏欢迎访问最近开发的助手网站：[维斯小助手🚀🚀](https://weisizhushou.com)
+
+2、如有其他问题可联系qq：3080435357或者微信：M87X2z
